@@ -58,6 +58,7 @@ plugins {
 	// Gives kotlin-noarg for @Entity, @Embeddable
 	kotlin("plugin.jpa") version "1.4.20"
 	idea
+	pmd
 }
 
 dependencies {
