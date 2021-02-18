@@ -50,6 +50,7 @@ plugins {
     id("io.gitlab.arturbosch.detekt") version "1.16.0-RC1"
     jacoco
     id("org.sonarqube") version "3.1.1"
+    id("org.owasp.dependencycheck") version "6.1.1"
 }
 
 idea {
@@ -95,6 +96,11 @@ sonarqube {
         property("sonar.kotlin.detekt.reportPaths", "build/reports/detekt/detekt.xml")
         property("sonar.coverage.jacoco.xmlReportPaths", "build/reports/jacoco/**/jacocoTestReport.xml")
     }
+}
+
+dependencyCheck {
+    format = org.owasp.dependencycheck.reporting.ReportGenerator.Format.ALL
+    outputDirectory = "build/reports/dependency-check"
 }
 
 dependencies {
@@ -145,7 +151,6 @@ tasks {
     test {
         useJUnitPlatform()
         systemProperty("spring.profiles.active", "test")
-        finalizedBy(jacocoTestReport)
     }
 
     create("integrationTest", Test::class) {
@@ -156,7 +161,6 @@ tasks {
         classpath = sourceSets["integrationTest"].runtimeClasspath
         shouldRunAfter("test")
         outputs.upToDateWhen { false }
-        finalizedBy(jacocoTestReport)
     }
 
     create("manualTest", Test::class) {
