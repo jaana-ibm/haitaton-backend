@@ -435,8 +435,8 @@ class HankeControllerITests(@Autowired val mockMvc: MockMvc) {
         hankeToBeUpdated.tyomaaKoko = TyomaaKoko.LAAJA_TAI_USEA_KORTTELI
         hankeToBeUpdated.haittaAlkuPvm = getDatetimeAlku()
         hankeToBeUpdated.haittaLoppuPvm = getDatetimeLoppu()
-        hankeToBeUpdated.kaistaHaitta = TodennakoinenHaittaPaaAjoRatojenKaistajarjestelyihin.VAHENTAA_KAISTAN_YHDELLA_AJOSUUNNALLA
-        hankeToBeUpdated.kaistaPituusHaitta = KaistajarjestelynPituus.ALKAEN_101M_PAATTYEN_500M
+        hankeToBeUpdated.kaistaHaitta = TodennakoinenHaittaPaaAjoRatojenKaistajarjestelyihin.KAKSI
+        hankeToBeUpdated.kaistaPituusHaitta = KaistajarjestelynPituus.NELJA
         hankeToBeUpdated.meluHaitta = Haitta13.YKSI
         hankeToBeUpdated.polyHaitta = Haitta13.KAKSI
         hankeToBeUpdated.tarinaHaitta = Haitta13.KOLME
@@ -472,7 +472,7 @@ class HankeControllerITests(@Autowired val mockMvc: MockMvc) {
             .andExpect(content().json(expectedContent))
             // These might be redundant, but at least it is clear what we're checking here:
             .andExpect(jsonPath("$.tyomaaKatuosoite").value("Testikatu 1"))
-            .andExpect(jsonPath("$.kaistaHaitta").value(TodennakoinenHaittaPaaAjoRatojenKaistajarjestelyihin.VAHENTAA_KAISTAN_YHDELLA_AJOSUUNNALLA.name)) // Note, here as string, not the enum.
+            .andExpect(jsonPath("$.kaistaHaitta").value(TodennakoinenHaittaPaaAjoRatojenKaistajarjestelyihin.KAKSI.name)) // Note, here as string, not the enum.
         verify { hankeService.updateHanke(any()) }
     }
 
@@ -592,8 +592,8 @@ class HankeControllerITests(@Autowired val mockMvc: MockMvc) {
         hankeToBeUpdated.haittaAlkuPvm = getDatetimeAlku()
         hankeToBeUpdated.haittaLoppuPvm = getDatetimeLoppu()
         hankeToBeUpdated.kaistaHaitta =
-            TodennakoinenHaittaPaaAjoRatojenKaistajarjestelyihin.VAHENTAA_KAISTAN_YHDELLA_AJOSUUNNALLA
-        hankeToBeUpdated.kaistaPituusHaitta = KaistajarjestelynPituus.ALKAEN_101M_PAATTYEN_500M
+            TodennakoinenHaittaPaaAjoRatojenKaistajarjestelyihin.KAKSI
+        hankeToBeUpdated.kaistaPituusHaitta = KaistajarjestelynPituus.NELJA
         hankeToBeUpdated.meluHaitta = Haitta13.YKSI
         hankeToBeUpdated.polyHaitta = Haitta13.KAKSI
         hankeToBeUpdated.tarinaHaitta = Haitta13.KOLME
@@ -639,5 +639,33 @@ class HankeControllerITests(@Autowired val mockMvc: MockMvc) {
             .andExpect(jsonPath("$.tilat.onViereisiaHankkeita").value(false))
             .andExpect(jsonPath("$.tilat.onAsiakasryhmia").value(false))
         verify { hankeService.updateHanke(any()) }
+    }
+
+    @Test
+    fun `exception in Hanke creation causes a 500 Internal Server Error response with specific HankeError`() {
+        val hanke = Hanke(
+            "Testihanke",
+            ZonedDateTime.of(2021, 1, 1, 0, 0, 0, 0, TZ_UTC),
+            ZonedDateTime.of(2021, 12, 31, 0, 0, 0, 0, TZ_UTC),
+            Vaihe.OHJELMOINTI,
+            SaveType.AUTO
+        )
+        // faking the service call
+        every { hankeService.createHanke(any()) } throws RuntimeException("Some error")
+
+        // Call it and check results
+        mockMvc.perform(
+            post("/hankkeet")
+                .contentType(MediaType.APPLICATION_JSON)
+                .characterEncoding("UTF-8")
+                .content(hanke.toJsonString())
+                .with(csrf())
+                .accept(MediaType.APPLICATION_JSON)
+        )
+            .andExpect(status().isInternalServerError)
+            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+            .andExpect(content().json(HankeError.HAI0002.toJsonString()))
+
+        verify { hankeService.createHanke(any()) }
     }
 }

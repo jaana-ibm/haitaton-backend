@@ -4,7 +4,6 @@ import fi.hel.haitaton.hanke.KaistajarjestelynPituus
 import fi.hel.haitaton.hanke.SaveType
 import fi.hel.haitaton.hanke.TZ_UTC
 import fi.hel.haitaton.hanke.TodennakoinenHaittaPaaAjoRatojenKaistajarjestelyihin
-import fi.hel.haitaton.hanke.TormaysAnalyysiException
 import fi.hel.haitaton.hanke.Vaihe
 import fi.hel.haitaton.hanke.asJsonResource
 import fi.hel.haitaton.hanke.domain.Hanke
@@ -12,7 +11,6 @@ import fi.hel.haitaton.hanke.geometria.HankeGeometriat
 import fi.hel.haitaton.hanke.getCurrentTimeUTC
 import java.time.ZonedDateTime
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.Assert.assertThrows
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -46,11 +44,11 @@ internal class TormaystarkasteluLuokitteluServiceImplTest {
 
     @ParameterizedTest(name = "Lane hindrance of {0} means classification of {1}")
     @CsvSource(
-        "EI_VAIKUTA,1",
-        "VAHENTAA_KAISTAN_YHDELLA_AJOSUUNNALLA,2",
-        "VAHENTAA_SAMANAIKAISESTI_KAISTAN_KAHDELLA_AJOSUUNNALLA,3",
-        "VAHENTAA_SAMANAIKAISESTI_USEITA_KAISTOJA_KAHDELLA_AJOSUUNNALLA,4",
-        "VAHENTAA_SAMANAIKAISESTI_USEITA_KAISTOJA_LIITTYMIEN_ERI_SUUNNILLA,5"
+        "YKSI,1",
+        "KAKSI,2",
+        "KOLME,3",
+        "NELJA,4",
+        "VIISI,5"
     )
     fun todennakoinenHaittaPaaAjoratojenKaistajarjestelyihin(
         kaistaHaitta: TodennakoinenHaittaPaaAjoRatojenKaistajarjestelyihin,
@@ -69,11 +67,11 @@ internal class TormaystarkasteluLuokitteluServiceImplTest {
 
     @ParameterizedTest(name = "Lane organization length of {0} means classification of {1}")
     @CsvSource(
-        "EI_TARVITA,1",
-        "ENINTAAN_10M,2",
-        "ALKAEN_11M_PAATTYEN_100M,3",
-        "ALKAEN_101M_PAATTYEN_500M,4",
-        "YLI_500M,5"
+        "YKSI,1",
+        "KAKSI,2",
+        "KOLME,3",
+        "NELJA,4",
+        "VIISI,5"
     )
     fun kaistajarjestelynPituus(
         kaistaPituusHaitta: KaistajarjestelynPituus,
@@ -623,8 +621,8 @@ internal class TormaystarkasteluLuokitteluServiceImplTest {
         ).apply {
             this.haittaAlkuPvm = this.alkuPvm
             this.haittaLoppuPvm = this.loppuPvm
-            this.kaistaHaitta = TodennakoinenHaittaPaaAjoRatojenKaistajarjestelyihin.EI_VAIKUTA
-            this.kaistaPituusHaitta = KaistajarjestelynPituus.EI_TARVITA
+            this.kaistaHaitta = TodennakoinenHaittaPaaAjoRatojenKaistajarjestelyihin.YKSI
+            this.kaistaPituusHaitta = KaistajarjestelynPituus.YKSI
         }
 
         // adding geometry
@@ -632,44 +630,6 @@ internal class TormaystarkasteluLuokitteluServiceImplTest {
             .asJsonResource(HankeGeometriat::class.java)
         hanke.geometriat!!.id = 1
         return hanke
-    }
-
-    @Test
-    fun calculateTormaystarkasteluLuokitteluTulos_WhenLiikenneMaaraClassificationThrowsException() {
-        val hanke = createHankeForTest()
-
-        Mockito.`when`(tormaysPaikkaDao.yleisetKatuluokat(hanke.geometriat!!)).thenReturn(emptyMap())
-        Mockito.`when`(tormaysPaikkaDao.pyorailyreitit(hanke.geometriat!!)).thenReturn(emptyMap())
-
-        // hit in yleiset katualueet
-        Mockito.`when`(tormaysPaikkaDao.yleisetKatualueet(hanke.geometriat!!)).thenReturn(
-            mutableMapOf(Pair(hanke.geometriat!!.id!!, true))
-        )
-        // hit in katuluokat
-        Mockito.`when`(tormaysPaikkaDao.katuluokat(hanke.geometriat!!)).thenReturn(
-            mutableMapOf(Pair(hanke.geometriat!!.id!!, setOf(TormaystarkasteluKatuluokka.TONTTIKATU_TAI_AJOYHTEYS)))
-        )
-
-        Mockito.`when`(
-            tormaysPaikkaDao.liikennemaarat(
-                hanke.geometriat!!,
-                TormaystarkasteluLiikennemaaranEtaisyys.RADIUS_15
-            )
-        ).thenReturn(
-            emptyMap()
-        )
-
-        // NO hit in central_business_area -> kantakaupunki
-        Mockito.`when`(tormaysPaikkaDao.kantakaupunki(hanke.geometriat!!)).thenReturn(emptyMap())
-
-        val exception = assertThrows(TormaysAnalyysiException::class.java) {
-            TormaystarkasteluLuokitteluServiceImpl(tormaysPaikkaDao).calculateTormaystarkasteluLuokitteluTulos(
-                hanke,
-                LuokitteluRajaArvot()
-            )
-        }
-
-        assertThat(exception).hasMessage("Liikennemaara comparison went wrong for hankeId=1")
     }
 
     @Test
